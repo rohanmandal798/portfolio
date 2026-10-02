@@ -4,7 +4,6 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'rohanmandal798/portfolio'
-        DEPLOY_DIR = '/opt/portfolio-deploy'
     }
 
     stages {
@@ -71,23 +70,39 @@ pipeline {
 
         stage('Deploy to Localhost') {
             steps {
-                sh '''
-                    cd ${DEPLOY_DIR}
 
-                    sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" docker-compose.yml
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
 
-                    docker compose pull
-                    docker compose up -d
-                '''
+                    sh '''
+                        echo "$DOCKER_TOKEN" | docker login \
+                            --username "$DOCKER_USERNAME" \
+                            --password-stdin
+
+                        IMAGE_TAG=${BUILD_NUMBER} docker compose pull
+
+                        IMAGE_TAG=${BUILD_NUMBER} docker compose up -d
+
+                        docker logout
+                    '''
+                }
             }
         }
 
         stage('Health Check') {
             steps {
                 sh '''
+                    echo "Waiting for application to start..."
                     sleep 5
 
-                    curl --fail --silent --show-error \
+                    curl --fail \
+                        --silent \
+                        --show-error \
                         http://localhost:8080 > /dev/null
 
                     echo "Portfolio deployment is healthy."
@@ -99,13 +114,19 @@ pipeline {
     post {
 
         success {
-            echo 'CI/CD pipeline completed successfully.'
-            echo "Deployed image: ${IMAGE_NAME}:${BUILD_NUMBER}"
-            echo 'Portfolio: http://localhost:8080'
+            echo '=========================================='
+            echo 'CI/CD PIPELINE COMPLETED SUCCESSFULLY'
+            echo '=========================================='
+            echo "Build: ${BUILD_NUMBER}"
+            echo "Image: ${IMAGE_NAME}:${BUILD_NUMBER}"
+            echo "Application: http://localhost:8080"
         }
 
         failure {
-            echo 'Pipeline failed. Check the stage logs.'
+            echo '=========================================='
+            echo 'CI/CD PIPELINE FAILED'
+            echo '=========================================='
+            echo 'Check the failed stage logs.'
         }
 
         always {
