@@ -85,14 +85,6 @@ Jenkins
 rohankumarmandal.com.np
 ```
 
-### Architecture Diagram
-
-The detailed architecture is available here:
-
-```text
-docs/architecture.png
-```
-
 ---
 
 # Technology Stack
@@ -670,17 +662,3 @@ Networking
 **Application:** React + Vite
 
 ---
-
-### A small README tip
-
-For the architecture image, put the PNG here:
-
-```text
-docs/architecture.png
-```
-
-Then this line:
-
-```markdown
-![DevOps Architecture](docs/architecture.png)
-```
