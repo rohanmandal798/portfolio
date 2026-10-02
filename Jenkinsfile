@@ -42,16 +42,41 @@ pipeline {
                 """
             }
         }
+
+        stage('Docker Hub Push') {
+            steps {
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
+
+                    sh '''
+                        echo "$DOCKER_TOKEN" | docker login \
+                            --username "$DOCKER_USERNAME" \
+                            --password-stdin
+
+                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                        docker push ${IMAGE_NAME}:latest
+
+                        docker logout
+                    '''
+                }
+            }
+        }
     }
 
     post {
 
         success {
-            echo 'CI pipeline completed successfully.'
+            echo 'CI/CD pipeline completed successfully.'
         }
 
         failure {
-            echo 'CI pipeline failed. Check the stage logs.'
+            echo 'Pipeline failed. Check the stage logs.'
         }
 
         always {
