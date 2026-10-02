@@ -4,6 +4,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'rohanmandal798/portfolio'
+        DEPLOY_DIR = '/opt/portfolio-deploy'
     }
 
     stages {
@@ -67,12 +68,40 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to Localhost') {
+            steps {
+                sh '''
+                    cd ${DEPLOY_DIR}
+
+                    sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" docker-compose.yml
+
+                    docker compose pull
+                    docker compose up -d
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                    sleep 5
+
+                    curl --fail --silent --show-error \
+                        http://localhost:8080 > /dev/null
+
+                    echo "Portfolio deployment is healthy."
+                '''
+            }
+        }
     }
 
     post {
 
         success {
             echo 'CI/CD pipeline completed successfully.'
+            echo "Deployed image: ${IMAGE_NAME}:${BUILD_NUMBER}"
+            echo 'Portfolio: http://localhost:8080'
         }
 
         failure {
