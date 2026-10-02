@@ -59,5 +59,5 @@ export const certifications = [
  {name:'AWS Cloud Practitioner Training',issuer:'Broadway Infosys',status:'Completed · Apr 2026',mark:'AWS'},
  {name:'CAPIE — Certified API Hacking Expert',issuer:'The XSS Rat',status:'Completed · Jan 2026',mark:'API'},
  {name:'Certified Cybersecurity Educator Professional',issuer:'Red Team Leaders',status:'Completed · Dec 2025',mark:'CCEP'},
- {name:'Deloitte Australia Cyber Job Simulation',issuer:'Forage',status:'Completed · Dec 2025',mark:'CYBER'},
+ {name:'Deloitte Australia',issuer:'Forage',status:'Completed · Dec 2025',mark:'CYBER'},
 ];
