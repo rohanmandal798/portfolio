@@ -4,6 +4,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'rohanmandal798/portfolio'
+        GIT_REPO   = 'https://github.com/rohanmandal798/portfolio.git'
     }
 
     stages {
@@ -68,44 +69,57 @@ pipeline {
             }
         }
 
-        stage('Deploy to Localhost') {
+        stage('Update GitOps Manifest') {
+            steps {
+
+                sh """
+                    sed -i \
+                    "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" \
+                    portfolio-k8s/deployment.yaml
+
+                    echo "Updated image:"
+                    grep "image:" portfolio-k8s/deployment.yaml
+                """
+            }
+        }
+
+        stage('Commit and Push GitOps Change') {
             steps {
 
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_TOKEN'
+                        credentialsId: 'github-push',
+                        usernameVariable: 'GITHUB_USERNAME',
+                        passwordVariable: 'GITHUB_TOKEN'
                     )
                 ]) {
 
                     sh '''
-                        echo "$DOCKER_TOKEN" | docker login \
-                            --username "$DOCKER_USERNAME" \
-                            --password-stdin
+                        git config user.name "Jenkins"
+                        git config user.email "jenkins@localhost"
 
-                        IMAGE_TAG=${BUILD_NUMBER} docker compose pull
+                        git add portfolio-k8s/deployment.yaml
 
-                        IMAGE_TAG=${BUILD_NUMBER} docker compose up -d
+                        git commit \
+                            -m "Update portfolio image to ${BUILD_NUMBER}" \
+                            || echo "No changes to commit"
 
-                        docker logout
+                        git push \
+                            https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/rohanmandal798/portfolio.git \
+                            HEAD:main
                     '''
                 }
             }
         }
 
-        stage('Health Check') {
+        stage('Verify GitOps Change') {
             steps {
+
                 sh '''
-                    echo "Waiting for application to start..."
-                    sleep 5
+                    echo "GitOps manifest:"
+                    grep "image:" portfolio-k8s/deployment.yaml
 
-                    curl --fail \
-                        --silent \
-                        --show-error \
-                        http://localhost:80 > /dev/null
-
-                    echo "Portfolio deployment is healthy."
+                    echo "Argo CD will synchronize this change."
                 '''
             }
         }
@@ -119,12 +133,13 @@ pipeline {
             echo '=========================================='
             echo "Build: ${BUILD_NUMBER}"
             echo "Image: ${IMAGE_NAME}:${BUILD_NUMBER}"
-            echo "Application: http://localhost:8080"
+            echo "GitOps manifest updated."
+            echo "Argo CD will deploy the new image."
         }
 
         failure {
             echo '=========================================='
-            echo 'CI/CD PIPELINE FAILED'
+            echo 'PIPELINE FAILED'
             echo '=========================================='
             echo 'Check the failed stage logs.'
         }
