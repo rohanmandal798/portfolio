@@ -103,7 +103,7 @@ pipeline {
                     curl --fail \
                         --silent \
                         --show-error \
-                        http://localhost:8080 > /dev/null
+                        http://localhost:80 > /dev/null
 
                     echo "Portfolio deployment is healthy."
                 '''
