@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: portfolio
-          image: rohanmandal798/portfolio:29
+          image: rohanmandal798/portfolio:31
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
