@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/rohanmandal798/portfolio.git
     targetRevision: main
-    path: .
+    path: portfolio-k8s
 
   destination:
     server: https://kubernetes.default.svc
