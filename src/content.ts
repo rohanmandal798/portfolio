@@ -39,7 +39,7 @@ export const experiences = [
 
 export const projects = [
  {
-  title:'AutoRecon-V2',category:'SECURITY × AUTOMATION',year:'01',theme:'security',icon:'⌁',headline:'Reconnaissance, streamlined.',
+  title:'AutoRecon-Web Security',category:'SECURITY × AUTOMATION',year:'01',theme:'security',icon:'⌁',headline:'Reconnaissance, streamlined.',
   description:'An automated web reconnaissance and OWASP-based vulnerability assessment framework built to streamline the reconnaissance phase of ethical hacking engagements.',
   tech:['Python','Bash','OWASP','Nmap','AI Analysis'], outcomes:['Subdomain enumeration and port scanning','AI-assisted vulnerability analysis','OWASP mapping and reporting dashboard'], url:'https://github.com/rohanmandal798',
  },
