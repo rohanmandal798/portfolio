@@ -1,19 +1,19 @@
-# Stage 1: Build
-FROM node:22 AS builder
+# Build stage
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-
 RUN npm ci
 
 COPY . .
-
 RUN npm run build
 
 
-# Stage 2: Production
+# Production stage
 FROM nginx:alpine
+
+RUN apk update && apk upgrade --no-cache
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 
