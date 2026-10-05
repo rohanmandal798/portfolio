@@ -9,7 +9,6 @@ on:
   pull_request:
     branches: [main]
 
-# Required for GHCR and repository updates
 permissions:
   contents: write
   packages: write
@@ -22,18 +21,18 @@ env:
 jobs:
 
   # ============================================================
-  # TEST
+  # UNIT TESTING
   # ============================================================
   test:
     name: Unit Testing
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -46,18 +45,18 @@ jobs:
 
 
   # ============================================================
-  # LINT
+  # STATIC CODE ANALYSIS
   # ============================================================
   lint:
     name: Static Code Analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -74,15 +73,15 @@ jobs:
   # ============================================================
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test, lint]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -94,7 +93,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-artifacts
           path: dist/
@@ -102,11 +101,11 @@ jobs:
 
 
   # ============================================================
-  # DOCKER
+  # DOCKER BUILD AND SECURITY SCAN
   # ============================================================
   docker:
     name: Docker Build, Scan and Push
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
 
     outputs:
@@ -114,10 +113,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-artifacts
           path: dist/
@@ -160,8 +159,8 @@ jobs:
           format: table
           exit-code: "1"
           ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
 
       - name: Push Docker image
         uses: docker/build-push-action@v6
@@ -184,7 +183,7 @@ jobs:
   # ============================================================
   update-k8s:
     name: Update Kubernetes Deployment
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [docker]
 
     if: >
@@ -193,7 +192,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.TOKEN }}
 
@@ -214,17 +213,17 @@ jobs:
             "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" \
             kubernetes/deployment.yaml
 
-          echo "Updated Kubernetes deployment:"
-          grep -A 1 "image:" kubernetes/deployment.yaml
+          echo "Updated deployment image:"
+          grep "image:" kubernetes/deployment.yaml
 
       - name: Commit and push Kubernetes change
         run: |
           git add kubernetes/deployment.yaml
 
-          git diff --cached --quiet && {
+          if git diff --cached --quiet; then
             echo "No Kubernetes changes detected."
             exit 0
-          }
+          fi
 
           git commit \
             -m "Update Kubernetes deployment image to ${{ needs.docker.outputs.image_tag }} [skip ci]"
