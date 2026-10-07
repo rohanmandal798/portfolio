@@ -83,3 +83,9 @@ npm run build
 
 The build artifacts will be stored in the `dist/` directory.
 
+
+# Github login
+
+```
+docker login ghcr.io -u rohanmandal798
+```
