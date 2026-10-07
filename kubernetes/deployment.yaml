@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: portfolio
-          image: ghcr.io/rohanmandal798/portfolio:31 # github continaer
+          image: ghcr.io/rohanmandal798/portfolio:sha-46c75d7c7618dd76d90e5fa0eb30a32484b690dd
        # Image will be automatically updated by CI/CD pipeline
           imagePullPolicy: Always
           ports:
