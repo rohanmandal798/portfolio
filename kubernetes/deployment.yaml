@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: portfolio
-          image: ghcr.io/rohanmandal798/portfolio:sha-46c75d7c7618dd76d90e5fa0eb30a32484b690dd
+          image: ghcr.io/rohanmandal798/portfolio:sha-e3bddaec879de10a57c54047ca1d44fad0d4f4cc
 
           # Image will be automatically updated by CI/CD pipeline
           imagePullPolicy: Always
