@@ -2,128 +2,107 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths-ignore:
-      - "kubernetes/deployment.yaml"
-
+      - 'kubernetes/deployment.yaml'  # Ignore changes to this file to prevent loops
   pull_request:
-    branches:
-      - main
-
-permissions:
-  contents: write
-  packages: write
-
-env:
-  NODE_VERSION: "24"
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    branches: [ main ]
 
 jobs:
-
-  # ============================================================
-  # UNIT TESTING
-  # ============================================================
   test:
     name: Unit Testing
-    runs-on: ubuntu-24.04
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@v4
+      
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
+          node-version: '20'
+          cache: 'npm'
+      
       - name: Install dependencies
         run: npm ci
-
+      
       - name: Run tests
-        run: npm test || echo "No tests found, skipping test execution"
+        run: npm test || echo "No tests found, would add tests in a real project"
 
+  lint:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
 
-  # ============================================================
-  # BUILD
-  # ============================================================
   build:
     name: Build
-    runs-on: ubuntu-24.04
-
-    needs:
-      - test
-
+    runs-on: ubuntu-latest
+    needs: [test, lint]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@v4
+      
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
+          node-version: '20'
+          cache: 'npm'
+      
       - name: Install dependencies
         run: npm ci
-
+      
       - name: Build project
         run: npm run build
-
+      
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: dist/
-          retention-days: 7
 
-
-  # ============================================================
-  # DOCKER BUILD, SECURITY SCAN AND PUSH
-  # ============================================================
   docker:
-    name: Docker Build, Scan and Push
-    runs-on: ubuntu-24.04
-
-    needs:
-      - build
-
+    name: Docker Build and Push
+    runs-on: ubuntu-latest
+    needs: [build]
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
     outputs:
       image_tag: ${{ steps.set_output.outputs.image_tag }}
-
     steps:
-
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@v4
+      
       - name: Download build artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: build-artifacts
           path: dist/
-
-      # --------------------------------------------------------
-      # Docker Buildx
-      # --------------------------------------------------------
-      - name: Setup Docker Buildx
+      
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      # --------------------------------------------------------
-      # GHCR Login
-      # --------------------------------------------------------
+      
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.token }}
-
-      # --------------------------------------------------------
-      # Docker Metadata
-      # --------------------------------------------------------
-      - name: Extract Docker metadata
+          password: ${{ secrets.TOKEN }}
+      
+      - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -131,117 +110,73 @@ jobs:
           tags: |
             type=sha,format=long
             type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      # --------------------------------------------------------
-      # Docker Build
-      # --------------------------------------------------------
+            latest
+      
       - name: Build Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v5
         with:
           context: .
-          load: true
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # --------------------------------------------------------
-      # Trivy Security Scan
-      # --------------------------------------------------------
+          load: true
+      
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@master
         with:
-          version: v0.75.0
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          format: table
-          exit-code: "1"
+          format: 'table'
+          exit-code: '1'
           ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
-
-      # --------------------------------------------------------
-      # Push Docker Image
-      # --------------------------------------------------------
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+      
       - name: Push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # --------------------------------------------------------
-      # Output Image Tag
-      # --------------------------------------------------------
+      
       - name: Set image tag output
         id: set_output
-        run: |
-          echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+        run: echo "image_tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
-
-  # ============================================================
-  # UPDATE KUBERNETES DEPLOYMENT
-  # ============================================================
   update-k8s:
     name: Update Kubernetes Deployment
-    runs-on: ubuntu-24.04
-
-    needs:
-      - docker
-
-    if: >
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
-
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-
       - name: Checkout code
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+      
       - name: Setup Git config
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-
-      # --------------------------------------------------------
-      # Update Kubernetes Image
-      # --------------------------------------------------------
-      - name: Update Kubernetes deployment
+      
+      - name: Update Kubernetes deployment file
         env:
-          REGISTRY: ghcr.io
-          GITHUB_REPOSITORY: ${{ github.repository }}
           IMAGE_TAG: sha-${{ github.sha }}
-
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REGISTRY: ghcr.io
         run: |
+          # Define the new image with tag
           NEW_IMAGE="${REGISTRY}/${GITHUB_REPOSITORY}:${IMAGE_TAG}"
-
-          echo "Updating Kubernetes deployment..."
-          echo "New image: ${NEW_IMAGE}"
-
-          sed -i \
-            "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" \
-            kubernetes/deployment.yaml
-
-          echo "Updated deployment:"
-          grep "image:" kubernetes/deployment.yaml
-
-      # --------------------------------------------------------
-      # Commit Kubernetes Change
-      # --------------------------------------------------------
-      - name: Commit and push Kubernetes change
+          
+          # Update the deployment file directly
+          sed -i "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
+          
+          # Verify the change
+          echo "Updated deployment to use image: ${NEW_IMAGE}"
+          grep -A 1 "image:" kubernetes/deployment.yaml
+      
+      - name: Commit and push changes
         run: |
           git add kubernetes/deployment.yaml
-
-          if git diff --cached --quiet; then
-            echo "No Kubernetes changes detected."
-            exit 0
-          fi
-
-          git commit \
-            -m "Update Kubernetes deployment image to ${{ needs.docker.outputs.image_tag }} [skip ci]"
-
+          git commit -m "Update Kubernetes deployment with new image tag: ${{ needs.docker.outputs.image_tag }} [skip ci]" || echo "No changes to commit"
           git push
