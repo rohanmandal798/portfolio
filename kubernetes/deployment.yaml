@@ -4,23 +4,30 @@ metadata:
   name: portfolio
   labels:
     app: portfolio
+
 spec:
   replicas: 3
+
   selector:
     matchLabels:
       app: portfolio
+
   template:
     metadata:
       labels:
         app: portfolio
+
     spec:
       containers:
         - name: portfolio
           image: ghcr.io/rohanmandal798/portfolio:sha-46c75d7c7618dd76d90e5fa0eb30a32484b690dd
-       # Image will be automatically updated by CI/CD pipeline
+
+          # Image will be automatically updated by CI/CD pipeline
           imagePullPolicy: Always
+
           ports:
-          - containerPort: 80
+            - containerPort: 80
+
           resources:
             limits:
               cpu: "0.5"
@@ -28,17 +35,20 @@ spec:
             requests:
               cpu: "0.2"
               memory: "256Mi"
+
           livenessProbe:
             httpGet:
               path: /
               port: 80
             initialDelaySeconds: 30
             periodSeconds: 10
+
           readinessProbe:
             httpGet:
               path: /
               port: 80
             initialDelaySeconds: 5
             periodSeconds: 5
-          imagePullSecrets:
+
+      imagePullSecrets:
         - name: github-container-registry
