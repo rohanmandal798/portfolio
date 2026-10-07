@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: portfolio
-          image: grcr.io/rohanmandal798/portfolio:31 # github continaer
+          image: ghcr.io/rohanmandal798/portfolio:31 # github continaer
        # Image will be automatically updated by CI/CD pipeline
           imagePullPolicy: Always
           ports:
